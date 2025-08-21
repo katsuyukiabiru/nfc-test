@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>NFCリーダー</title>
+</head>
+<body>
+  <h1>NFC読み取り</h1>
+  <button id="scanButton">NFCスキャン</button>
+  <div id="log"></div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/xxxxxxxx/exec"; // GASのWebアプリURL
+
+    const scanButton = document.getElementById("scanButton");
+    const logArea = document.getElementById("log");
+
+    function log(msg) {
+      logArea.innerHTML += msg + "<br>";
+    }
+
+    scanButton.addEventListener("click", async () => {
+      try {
+        const reader = new NDEFReader();
+        await reader.scan();
+        log("スキャン開始しました");
+
+        reader.onreading = async event => {
+          const { serialNumber, message } = event;
+          let text = "";
+
+          for (const record of message.records) {
+            if (record.recordType === "text") {
+              text = new TextDecoder(record.encoding).decode(record.data);
+            }
+          }
+
+          log(`読み取り: ${serialNumber} / ${text}`);
+
+          // GASに送信
+          const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ serialNumber, text })
+          });
+          const result = await res.json();
+          log("GAS保存結果: " + JSON.stringify(result));
+        };
+
+      } catch (e) {
+        log("エラー: " + e);
+      }
+    });
+  </script>
+</body>
+</html>
